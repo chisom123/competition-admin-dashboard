@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "pingbear-96b4c"
+  },
+  "targets": {
+    "pingbear-96b4c": {
+      "hosting": {
+        "admin": [
+          "socialstar-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
