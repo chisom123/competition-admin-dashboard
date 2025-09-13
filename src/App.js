@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle } from 'lucide-react';
+import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
+import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -19,6 +19,10 @@ function App() {
   const [isSaving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [previewBet, setPreviewBet] = useState({ stake: 100, predictions: 3 });
+
+  // Accuracy insights state
+  const [accuracyInsights, setAccuracyInsights] = useState(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // Auth state
   const [email, setEmail] = useState('');
@@ -56,6 +60,41 @@ function App() {
     });
 
     return unsubscribe;
+  };
+
+  // Load accuracy insights from predictions collection
+  const loadAccuracyInsights = async () => {
+    setLoadingInsights(true);
+    try {
+      const predictionsRef = collection(db, 'predictions');
+      const snapshot = await getDocs(predictionsRef);
+      
+      let totalPredictions = 0;
+      let correctPredictions = 0;
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        totalPredictions++;
+        if (data.correct === true) {
+          correctPredictions++;
+        }
+      });
+      
+      const calculatedAccuracy = totalPredictions > 0 ? (correctPredictions / totalPredictions) : 0;
+      
+      setAccuracyInsights({
+        totalPredictions,
+        correctPredictions,
+        calculatedAccuracy,
+        lastUpdated: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Error loading accuracy insights:', error);
+      setAccuracyInsights(null);
+    } finally {
+      setLoadingInsights(false);
+    }
   };
 
   // Login function
@@ -310,6 +349,76 @@ function App() {
                   <span className="metadata-label">Updated By:</span>
                   <span className="metadata-value">{config.updated_by || 'Unknown'}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Accuracy Insights Panel */}
+          <div className="card">
+            <h2 className="card-title">
+              <BarChart3 size={20} />
+              Accuracy Insights
+            </h2>
+            
+            <div className="form-section">
+              <div className="form-group">
+                <label>Platform Data Analysis</label>
+                <button
+                  onClick={loadAccuracyInsights}
+                  disabled={loadingInsights}
+                  className="btn btn-secondary"
+                >
+                  {loadingInsights ? (
+                    <RefreshCw className="spinner" size={16} />
+                  ) : (
+                    <RefreshCw size={16} />
+                  )}
+                  {loadingInsights ? 'Loading...' : 'Refresh Data'}
+                </button>
+                
+                {accuracyInsights && (
+                  <div className="accuracy-results">
+                    <div className="result-item">
+                      <span>Total Predictions:</span>
+                      <span>{accuracyInsights.totalPredictions.toLocaleString()}</span>
+                    </div>
+                    <div className="result-item">
+                      <span>Correct Predictions:</span>
+                      <span>{accuracyInsights.correctPredictions.toLocaleString()}</span>
+                    </div>
+                    <div className="result-item">
+                      <span>Calculated Accuracy:</span>
+                      <span className="calculated-accuracy">
+                        {(accuracyInsights.calculatedAccuracy * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="result-item">
+                      <span>Current Setting:</span>
+                      <span className="current-setting">
+                        {(config.accuracy_rate * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="result-item">
+                      <span>Difference:</span>
+                      <span className={`difference ${Math.abs((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100) > 5 ? 'significant' : 'minor'}`}>
+                        {((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100) > 0 ? '+' : ''}
+                        {((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {accuracyInsights && (
+                  <p className="description">
+                    Data refreshed: {new Date(accuracyInsights.lastUpdated).toLocaleString()}
+                  </p>
+                )}
+                
+                {!accuracyInsights && (
+                  <p className="description">
+                    Click "Refresh Data" to analyze current platform accuracy
+                  </p>
+                )}
               </div>
             </div>
           </div>
