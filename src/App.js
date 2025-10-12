@@ -11,6 +11,7 @@ function App() {
   const [config, setConfig] = useState({
     house_edge: 0.30,
     accuracy_rate: 0.50,
+    bonus_pool_percentage: 0.50,
     last_updated: null,
     updated_by: null,
     version: '1.0'
@@ -170,6 +171,15 @@ function App() {
     return Math.round(stake * multiplier);
   };
 
+  const calculateBonusPool = (lostStake, bonusPoolPercentage) => {
+    return Math.floor(lostStake * bonusPoolPercentage);
+  };
+
+  const calculateRaterBonus = (bonusPool, totalPredictions) => {
+    if (totalPredictions <= 0) return 0;
+    return Math.floor(bonusPool / totalPredictions);
+  };
+
   // Show loading spinner on initial load
   if (loading) {
     return (
@@ -321,6 +331,26 @@ function App() {
                 <p className="description">Expected success rate per prediction</p>
               </div>
 
+              {/* Bonus Pool Percentage */}
+              <div className="form-group">
+                <label>Rater Bonus Pool</label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={config.bonus_pool_percentage}
+                    onChange={(e) => updateValue('bonus_pool_percentage', parseFloat(e.target.value))}
+                    className="slider"
+                  />
+                  <div className="slider-value">
+                    {(config.bonus_pool_percentage * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <p className="description">Percentage of lost stakes paid to raters as bonuses</p>
+              </div>
+
               {/* Save Button */}
               <button
                 onClick={saveConfig}
@@ -464,6 +494,8 @@ function App() {
                   const multiplier = calculateMultiplier(previewBet.predictions, config.house_edge, config.accuracy_rate);
                   const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge, config.accuracy_rate);
                   const profit = payout - previewBet.stake;
+                  const bonusPool = calculateBonusPool(previewBet.stake, config.bonus_pool_percentage);
+                  const raterBonus = calculateRaterBonus(bonusPool, previewBet.predictions);
                   
                   return (
                     <>
@@ -482,6 +514,15 @@ function App() {
                       <div className="result-item">
                         <span>Profit:</span>
                         <span className="profit">+{profit} coins</span>
+                      </div>
+                      <div className="divider"></div>
+                      <div className="result-item">
+                        <span>Bonus Pool (if lost):</span>
+                        <span className="bonus-pool">{bonusPool} coins</span>
+                      </div>
+                      <div className="result-item">
+                        <span>Per-Rater Bonus:</span>
+                        <span className="rater-bonus">{raterBonus} coins each</span>
                       </div>
                     </>
                   );
