@@ -174,6 +174,28 @@ function App() {
     setSaveStatus(null);
   };
 
+  const calculateNetHouseEV = (predictions, houseEdge, bonusPoolPercentage) => {
+    if (predictions.length === 0) return 0;
+    
+    // Calculate combined win probability
+    const combinedWinProbability = predictions.reduce((total, star) => {
+      return total * config.star_accuracy_rates[star];
+    }, 1.0);
+    
+    const lossRate = 1 - combinedWinProbability;
+    
+    // FIXED: Use the actual multiplier being shown to users
+    const actualMultiplier = calculateParlayMultiplier(predictions, houseEdge);
+    
+    // FIXED: Proper EV calculation
+    const grossHouseEV = 1 - (combinedWinProbability * actualMultiplier);
+    
+    // Net House EV (after bonus pool cost)
+    const netHouseEV = grossHouseEV - (bonusPoolPercentage * lossRate);
+    
+    return netHouseEV;
+  };
+
   // Calculation functions
   const calculateSingleStarMultiplier = (starRating, houseEdge) => {
     const starAccuracy = config.star_accuracy_rates[starRating] || 0.5;
@@ -579,6 +601,16 @@ const removePreviewPrediction = (indexToRemove) => {
                     const bonusPool = calculateBonusPool(previewBet.stake, config.bonus_pool_percentage);
                     const raterBonus = calculateRaterBonus(bonusPool, previewBet.predictions.length);
                     
+                    // NEW: Calculate combinedWinProbability here
+                    const combinedWinProbability = previewBet.predictions.length > 0 
+                      ? previewBet.predictions.reduce((total, star) => {
+                          return total * config.star_accuracy_rates[star];
+                        }, 1.0)
+                      : 0;
+                    
+                    // NEW: Calculate Net House EV
+                    const netHouseEV = calculateNetHouseEV(previewBet.predictions, config.house_edge, config.bonus_pool_percentage);
+                    
                     return (
                       <>
                         <div className="result-item">
@@ -596,6 +628,26 @@ const removePreviewPrediction = (indexToRemove) => {
                         <div className="result-item">
                           <span>Profit:</span>
                           <span className="profit">+{profit} coins</span>
+                        </div>
+                        <div className="divider"></div>
+                        {/* NEW: House Economics Section */}
+                        <div className="result-item highlight">
+                          <span>Gross House EV:</span>
+                          <span className="house-ev">
+                            {combinedWinProbability > 0 ? (1 - (combinedWinProbability * multiplier)) * 100 : 0}%
+                          </span>
+                        </div>
+                        <div className="result-item highlight">
+                          <span>Bonus Pool Cost:</span>
+                          <span className="bonus-cost">
+                            {combinedWinProbability > 0 ? (config.bonus_pool_percentage * (1 - combinedWinProbability) * 100).toFixed(1) : 0}%
+                          </span>
+                        </div>
+                        <div className="result-item highlight">
+                          <span>Net House EV:</span>
+                          <span className={`net-ev ${netHouseEV >= 0 ? 'positive' : 'negative'}`}>
+                            {(netHouseEV * 100).toFixed(1)}%
+                          </span>
                         </div>
                         <div className="divider"></div>
                         <div className="result-item">
