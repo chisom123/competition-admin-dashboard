@@ -246,7 +246,7 @@ body {
   border-radius: 50%;
   background: #4dabf7;
   cursor: pointer;
-  border: 3px solid #0f1419;
+  border: 3px solid #2a3441; /* Your card border color */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
 }
@@ -262,7 +262,7 @@ body {
   border-radius: 50%;
   background: #4dabf7;
   cursor: pointer;
-  border: 3px solid #0f1419;
+  border: 3px solid #2a3441; /* Your card border color */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -409,6 +409,315 @@ body {
   background: #0d4a1f;
   border: 1px solid #28a745;
   color: #28a745;
+}
+
+/* Add these to your existing App.css */
+
+/* Improved Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 30px;
+  align-items: start;
+}
+
+.side-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Section Labels */
+.section-label {
+  color: #f0f6fc;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+/* Star Accuracy Grid - Much Cleaner */
+.star-accuracy-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.star-accuracy-item {
+  background: rgba(42, 52, 65, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.star-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.star-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffd700;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.star-label svg {
+  color: #ffd700;
+}
+
+.multiplier-preview {
+  background: rgba(65, 105, 225, 0.2);
+  color: #4169E1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Compact Slider */
+.slider-container.compact {
+  gap: 12px;
+}
+
+.slider-container.compact .slider-value {
+  min-width: 50px;
+  font-size: 13px;
+}
+
+/* Insights Section */
+.insights-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.overall-accuracy {
+  background: rgba(42, 52, 65, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.overall-accuracy h4 {
+  color: #f0f6fc;
+  font-size: 14px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.accuracy-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-item.highlight {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.calculated-accuracy {
+  color: #4dabf7 !important;
+  font-size: 16px !important;
+}
+
+/* Star Insights Grid */
+.star-insights {
+  background: rgba(42, 52, 65, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.star-insights h4 {
+  color: #f0f6fc;
+  font-size: 14px;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+.star-insights-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.star-insight-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.star-progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4dabf7;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.star-numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sample-size {
+  opacity: 0.6;
+}
+
+.difference {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 45px;
+  text-align: center;
+}
+
+.difference.significant {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+.difference.minor {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+/* Improved Star Selection */
+.star-selection {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.star-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.star-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.star-btn.selected {
+  background: rgba(65, 105, 225, 0.25);
+  border-color: #4169E1;
+  color: #ffd700;
+  transform: scale(1.05);
+}
+
+.star-btn svg {
+  color: #ffd700;
+}
+
+.star-multiplier {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Improved spacing in form sections */
+.form-section {
+  gap: 28px;
+}
+
+.form-group {
+  gap: 12px;
+}
+
+/* Selected Predictions Chips */
+.selected-predictions {
+  margin-top: 12px;
+}
+
+.selected-predictions label {
+  font-size: 12px;
+  color: #8b949e;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.prediction-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prediction-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(65, 105, 225, 0.2);
+  border: 1px solid #4169E1;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.prediction-chip svg {
+  color: #ffd700;
+}
+
+.remove-chip {
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.remove-chip:hover {
+  opacity: 1;
 }
 
 /* Responsive */

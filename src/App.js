@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
+import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle, BarChart3, Star } from 'lucide-react';
 import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
-    house_edge: 0.30,
-    accuracy_rate: 0.50,
+    house_edge: 0.20,
     bonus_pool_percentage: 0.50,
+    star_accuracy_rates: {
+      1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
+    },
     last_updated: null,
     updated_by: null,
     version: '1.0'
@@ -19,13 +21,10 @@ function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
-  const [previewBet, setPreviewBet] = useState({ stake: 100, predictions: 3 });
-
-  // Accuracy insights state
+  const [previewBet, setPreviewBet] = useState({ stake: 100, predictions: [] });
   const [accuracyInsights, setAccuracyInsights] = useState(null);
+  const [starAccuracyInsights, setStarAccuracyInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
-
-  // Auth state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -39,31 +38,36 @@ function App() {
         loadConfig();
       }
     });
-
     return () => unsubscribe();
   }, []);
 
-  // Load config from Firestore with real-time updates
+  // Load config from Firestore
   const loadConfig = () => {
     const configRef = doc(db, 'app_config', 'pricing');
-    
     const unsubscribe = onSnapshot(configRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        setConfig(data);
+        const migratedConfig = {
+          house_edge: data.house_edge || 0.20,
+          bonus_pool_percentage: data.bonus_pool_percentage || 0.50,
+          star_accuracy_rates: data.star_accuracy_rates || {
+            1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
+          },
+          last_updated: data.last_updated,
+          updated_by: data.updated_by,
+          version: data.version || '1.0'
+        };
+        setConfig(migratedConfig);
         setIsDirty(false);
-      } else {
-        console.log('No config document found, using defaults');
       }
     }, (error) => {
       console.error('Error listening to config:', error);
       setSaveStatus('error');
     });
-
     return unsubscribe;
   };
 
-  // Load accuracy insights from predictions collection
+  // Load accuracy insights
   const loadAccuracyInsights = async () => {
     setLoadingInsights(true);
     try {
@@ -72,27 +76,34 @@ function App() {
       
       let totalPredictions = 0;
       let correctPredictions = 0;
+      const starStats = { 1: { total: 0, correct: 0 }, 2: { total: 0, correct: 0 }, 3: { total: 0, correct: 0 }, 4: { total: 0, correct: 0 }, 5: { total: 0, correct: 0 } };
       
       snapshot.forEach((doc) => {
         const data = doc.data();
         totalPredictions++;
-        if (data.correct === true) {
-          correctPredictions++;
+        if (data.correct === true) correctPredictions++;
+        
+        const predictedRating = data.predictedRating;
+        if (predictedRating >= 1 && predictedRating <= 5) {
+          starStats[predictedRating].total++;
+          if (data.correct === true) starStats[predictedRating].correct++;
         }
       });
       
       const calculatedAccuracy = totalPredictions > 0 ? (correctPredictions / totalPredictions) : 0;
+      const starAccuracies = {};
+      for (let star = 1; star <= 5; star++) {
+        starAccuracies[star] = starStats[star].total > 0 
+          ? (starStats[star].correct / starStats[star].total) : 0;
+      }
       
-      setAccuracyInsights({
-        totalPredictions,
-        correctPredictions,
-        calculatedAccuracy,
-        lastUpdated: new Date().toISOString()
-      });
+      setAccuracyInsights({ totalPredictions, correctPredictions, calculatedAccuracy, lastUpdated: new Date().toISOString() });
+      setStarAccuracyInsights({ starStats, starAccuracies, lastUpdated: new Date().toISOString() });
       
     } catch (error) {
       console.error('Error loading accuracy insights:', error);
       setAccuracyInsights(null);
+      setStarAccuracyInsights(null);
     } finally {
       setLoadingInsights(false);
     }
@@ -103,7 +114,6 @@ function App() {
     e.preventDefault();
     setLoginError('');
     setLoading(true);
-
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
@@ -126,7 +136,6 @@ function App() {
   const saveConfig = async () => {
     setSaving(true);
     setSaveStatus(null);
-    
     try {
       const updatedConfig = {
         ...config,
@@ -134,14 +143,11 @@ function App() {
         updated_by: user.email,
         version: (parseFloat(config.version) + 0.1).toFixed(1)
       };
-
       const configRef = doc(db, 'app_config', 'pricing');
       await setDoc(configRef, updatedConfig);
-      
       setConfig(updatedConfig);
       setIsDirty(false);
       setSaveStatus('success');
-      
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
       console.error('Failed to save config:', error);
@@ -158,16 +164,36 @@ function App() {
     setSaveStatus(null);
   };
 
-  // Calculation functions
-  const calculateMultiplier = (predictions, houseEdge, accuracyRate) => {
-    if (predictions <= 0) return 1.0;
-    const winProbability = Math.pow(accuracyRate, predictions);
-    const fairMultiplier = 1.0 / winProbability;
-    return Math.min(fairMultiplier * (1.0 - houseEdge), 100.0);
+  // Update star accuracy rate
+  const updateStarAccuracy = (star, value) => {
+    setConfig(prev => ({
+      ...prev,
+      star_accuracy_rates: { ...prev.star_accuracy_rates, [star]: value }
+    }));
+    setIsDirty(true);
+    setSaveStatus(null);
   };
 
-  const calculatePayout = (stake, predictions, houseEdge, accuracyRate) => {
-    const multiplier = calculateMultiplier(predictions, houseEdge, accuracyRate);
+  // Calculation functions
+  const calculateSingleStarMultiplier = (starRating, houseEdge) => {
+    const starAccuracy = config.star_accuracy_rates[starRating] || 0.5;
+    const fairMultiplier = 1.0 / starAccuracy;
+    const multiplier = fairMultiplier * (1.0 - houseEdge);
+    return Math.max(Math.floor(multiplier * 10) / 10, 1.1);
+  };
+
+  const calculateParlayMultiplier = (predictions, houseEdge) => {
+    if (!predictions.length) return 1.0;
+    let finalMultiplier = 1.0;
+    predictions.forEach(starRating => {
+      const starMultiplier = calculateSingleStarMultiplier(starRating, houseEdge);
+      finalMultiplier *= starMultiplier;
+    });
+    return Math.min(finalMultiplier, 100.0);
+  };
+
+  const calculatePayout = (stake, predictions, houseEdge) => {
+    const multiplier = calculateParlayMultiplier(predictions, houseEdge);
     return Math.round(stake * multiplier);
   };
 
@@ -179,6 +205,24 @@ function App() {
     if (totalPredictions <= 0) return 0;
     return Math.floor(bonusPool / totalPredictions);
   };
+
+// Add/remove stars from preview - UPDATED to allow duplicates
+const togglePreviewStar = (star) => {
+  setPreviewBet(prev => {
+    const newPredictions = [...prev.predictions];
+    // Simply add the star without checking for duplicates
+    newPredictions.push(star);
+    return { ...prev, predictions: newPredictions };
+  });
+};
+
+// Add a function to remove specific prediction
+const removePreviewPrediction = (indexToRemove) => {
+  setPreviewBet(prev => ({
+    ...prev,
+    predictions: prev.predictions.filter((_, index) => index !== indexToRemove)
+  }));
+};
 
   // Show loading spinner on initial load
   if (loading) {
@@ -197,10 +241,8 @@ function App() {
         <div className="login-card">
           <div className="login-header">
             <Settings size={32} className="login-icon" />
-            <h1>Admin Dashboard</h1>
-            <p>Sign in to manage competition settings</p>
+            <h1>Control Room</h1>
           </div>
-          
           <form onSubmit={handleLogin} className="login-form">
             {loginError && (
               <div className="alert alert-error">
@@ -208,7 +250,6 @@ function App() {
                 {loginError}
               </div>
             )}
-            
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input
@@ -221,7 +262,6 @@ function App() {
                 placeholder="admin@yourapp.com"
               />
             </div>
-            
             <div className="form-group">
               <label htmlFor="password">Password</label>
               <input
@@ -234,7 +274,6 @@ function App() {
                 placeholder="••••••••"
               />
             </div>
-            
             <button type="submit" className="btn btn-primary full-width" disabled={loading}>
               {loading ? <RefreshCw className="spinner" size={16} /> : 'Sign In'}
             </button>
@@ -247,17 +286,14 @@ function App() {
   // Main dashboard
   return (
     <div className="dashboard">
-      {/* Header */}
       <div className="header">
         <div className="header-content">
           <div className="header-left">
             <Settings size={32} className="header-icon" />
             <div>
-              <h1>Competition Admin Dashboard</h1>
-              <p>Manage parlay betting parameters</p>
+              <h1>Control Room</h1>
             </div>
           </div>
-          
           <div className="header-right">
             {saveStatus === 'success' && (
               <div className="status-message success">
@@ -271,7 +307,6 @@ function App() {
                 Save failed
               </div>
             )}
-            
             <span className="user-email">{user.email}</span>
             <button onClick={handleLogout} className="btn btn-secondary">
               <LogOut size={16} />
@@ -289,7 +324,6 @@ function App() {
               <Settings size={20} />
               Pricing Parameters
             </h2>
-            
             <div className="form-section">
               {/* House Edge */}
               <div className="form-group">
@@ -309,26 +343,6 @@ function App() {
                   </div>
                 </div>
                 <p className="description">Platform profit margin per bet</p>
-              </div>
-
-              {/* Accuracy Rate */}
-              <div className="form-group">
-                <label>Assumed Prediction Accuracy</label>
-                <div className="slider-container">
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="0.9"
-                    step="0.01"
-                    value={config.accuracy_rate}
-                    onChange={(e) => updateValue('accuracy_rate', parseFloat(e.target.value))}
-                    className="slider"
-                  />
-                  <div className="slider-value">
-                    {(config.accuracy_rate * 100).toFixed(1)}%
-                  </div>
-                </div>
-                <p className="description">Expected success rate per prediction</p>
               </div>
 
               {/* Bonus Pool Percentage */}
@@ -351,22 +365,50 @@ function App() {
                 <p className="description">Percentage of lost stakes paid to raters as bonuses</p>
               </div>
 
-              {/* Save Button */}
+              {/* Per-Star Accuracy Rates */}
+              <div className="form-group">
+                <label className="section-label">Per-Star Accuracy Rates</label>
+                <div className="star-accuracy-grid">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <div key={star} className="star-accuracy-item">
+                      <div className="star-header">
+                        <div className="star-label">
+                          <Star size={16} fill="currentColor" />
+                          <span>{star} Star{star !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="multiplier-preview">
+                          {calculateSingleStarMultiplier(star, config.house_edge).toFixed(1)}x
+                        </div>
+                      </div>
+                      <div className="slider-container compact">
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="0.95"
+                          step="0.01"
+                          value={config.star_accuracy_rates[star]}
+                          onChange={(e) => updateStarAccuracy(star, parseFloat(e.target.value))}
+                          className="slider"
+                        />
+                        <div className="slider-value">
+                          {(config.star_accuracy_rates[star] * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={saveConfig}
                 disabled={!isDirty || isSaving}
                 className={`btn btn-primary ${(!isDirty || isSaving) ? 'disabled' : ''}`}
               >
-                {isSaving ? (
-                  <RefreshCw className="spinner" size={16} />
-                ) : (
-                  <Save size={16} />
-                )}
+                {isSaving ? <RefreshCw className="spinner" size={16} /> : <Save size={16} />}
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
 
-            {/* Metadata */}
             <div className="metadata">
               <div className="metadata-grid">
                 <div>
@@ -383,65 +425,84 @@ function App() {
             </div>
           </div>
 
-          {/* Accuracy Insights Panel */}
-          <div className="card">
-            <h2 className="card-title">
-              <BarChart3 size={20} />
-              Accuracy Insights
-            </h2>
-            
-            <div className="form-section">
-              <div className="form-group">
-                <label>Platform Data Analysis</label>
+          {/* Accuracy Insights & Preview Panels */}
+          <div className="side-panels">
+            {/* Accuracy Insights Panel */}
+            <div className="card">
+              <h2 className="card-title">
+                <BarChart3 size={20} />
+                Accuracy Insights
+              </h2>
+              <div className="form-section">
                 <button
                   onClick={loadAccuracyInsights}
                   disabled={loadingInsights}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary full-width"
                 >
-                  {loadingInsights ? (
-                    <RefreshCw className="spinner" size={16} />
-                  ) : (
-                    <RefreshCw size={16} />
-                  )}
+                  {loadingInsights ? <RefreshCw className="spinner" size={16} /> : <RefreshCw size={16} />}
                   {loadingInsights ? 'Loading...' : 'Refresh Data'}
                 </button>
                 
                 {accuracyInsights && (
-                  <div className="accuracy-results">
-                    <div className="result-item">
-                      <span>Total Predictions:</span>
-                      <span>{accuracyInsights.totalPredictions.toLocaleString()}</span>
+                  <div className="insights-section">
+                    <div className="overall-accuracy">
+                      <h4>Overall Platform Stats</h4>
+                      <div className="accuracy-results">
+                        <div className="result-item">
+                          <span>Total Predictions:</span>
+                          <span>{accuracyInsights.totalPredictions.toLocaleString()}</span>
+                        </div>
+                        <div className="result-item">
+                          <span>Correct Predictions:</span>
+                          <span>{accuracyInsights.correctPredictions.toLocaleString()}</span>
+                        </div>
+                        <div className="result-item highlight">
+                          <span>Overall Accuracy:</span>
+                          <span className="calculated-accuracy">
+                            {(accuracyInsights.calculatedAccuracy * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="result-item">
-                      <span>Correct Predictions:</span>
-                      <span>{accuracyInsights.correctPredictions.toLocaleString()}</span>
-                    </div>
-                    <div className="result-item">
-                      <span>Calculated Accuracy:</span>
-                      <span className="calculated-accuracy">
-                        {(accuracyInsights.calculatedAccuracy * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="result-item">
-                      <span>Current Setting:</span>
-                      <span className="current-setting">
-                        {(config.accuracy_rate * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="result-item">
-                      <span>Difference:</span>
-                      <span className={`difference ${Math.abs((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100) > 5 ? 'significant' : 'minor'}`}>
-                        {((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100) > 0 ? '+' : ''}
-                        {((accuracyInsights.calculatedAccuracy - config.accuracy_rate) * 100).toFixed(1)}%
-                      </span>
-                    </div>
+
+                    {starAccuracyInsights && (
+                      <div className="star-insights">
+                        <h4>Per-Star Analysis</h4>
+                        <div className="star-insights-grid">
+                          {[1, 2, 3, 4, 5].map(star => {
+                            const actual = starAccuracyInsights.starAccuracies[star];
+                            const configured = config.star_accuracy_rates[star];
+                            const difference = actual - configured;
+                            return (
+                              <div key={star} className="star-insight-item">
+                                <div className="star-label">
+                                  <Star size={14} fill="currentColor" />
+                                  <span>{star}</span>
+                                </div>
+                                <div className="star-progress">
+                                  <div className="progress-bar">
+                                    <div 
+                                      className="progress-fill" 
+                                      style={{ width: `${actual * 100}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="star-numbers">
+                                    <span>{(actual * 100).toFixed(1)}%</span>
+                                    <span className="sample-size">
+                                      ({starAccuracyInsights.starStats[star].correct}/{starAccuracyInsights.starStats[star].total})
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className={`difference ${Math.abs(difference * 100) > 5 ? 'significant' : 'minor'}`}>
+                                  {difference > 0 ? '+' : ''}{(difference * 100).toFixed(1)}%
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                
-                {accuracyInsights && (
-                  <p className="description">
-                    Data refreshed: {new Date(accuracyInsights.lastUpdated).toLocaleString()}
-                  </p>
                 )}
                 
                 {!accuracyInsights && (
@@ -451,82 +512,104 @@ function App() {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Preview Panel */}
-          <div className="card">
-            <h2 className="card-title">
-              <Eye size={20} />
-              Live Preview
-            </h2>
-            
-            <div className="form-section">
-              <div className="form-group">
-                <label>Test Stake Amount</label>
-                <input
-                  type="number"
-                  value={previewBet.stake}
-                  onChange={(e) => setPreviewBet(prev => ({ ...prev, stake: parseInt(e.target.value) || 0 }))}
-                  className="form-input"
-                  min="1"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Number of Predictions</label>
-                <div className="slider-container">
+            {/* Preview Panel */}
+            <div className="card">
+              <h2 className="card-title">
+                <Eye size={20} />
+                Live Preview
+              </h2>
+              <div className="form-section">
+                <div className="form-group">
+                  <label>Test Stake Amount</label>
                   <input
-                    type="range"
+                    type="number"
+                    value={previewBet.stake}
+                    onChange={(e) => setPreviewBet(prev => ({ ...prev, stake: parseInt(e.target.value) || 0 }))}
+                    className="form-input"
                     min="1"
-                    max="8"
-                    step="1"
-                    value={previewBet.predictions}
-                    onChange={(e) => setPreviewBet(prev => ({ ...prev, predictions: parseInt(e.target.value) }))}
-                    className="slider"
                   />
-                  <div className="slider-value">{previewBet.predictions}</div>
                 </div>
-              </div>
-              
-              <div className="preview-results">
-                {(() => {
-                  const winProb = Math.pow(config.accuracy_rate, previewBet.predictions);
-                  const multiplier = calculateMultiplier(previewBet.predictions, config.house_edge, config.accuracy_rate);
-                  const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge, config.accuracy_rate);
-                  const profit = payout - previewBet.stake;
-                  const bonusPool = calculateBonusPool(previewBet.stake, config.bonus_pool_percentage);
-                  const raterBonus = calculateRaterBonus(bonusPool, previewBet.predictions);
+                
+                <div className="form-group">
+                  <label>Select Predictions</label>
+                  <div className="star-selection">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        className="star-btn" // Removed selected class since we can have duplicates
+                        onClick={() => togglePreviewStar(star)}
+                      >
+                        <Star size={16} fill="currentColor" />
+                        {star}
+                        <div className="star-multiplier">
+                          {calculateSingleStarMultiplier(star, config.house_edge).toFixed(1)}x
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                   
-                  return (
-                    <>
-                      <div className="result-item">
-                        <span>Win Probability:</span>
-                        <span>{(winProb * 100).toFixed(1)}%</span>
+                  {/* Show selected predictions with remove option */}
+                  {previewBet.predictions.length > 0 && (
+                    <div className="selected-predictions">
+                      <label>Selected Predictions:</label>
+                      <div className="prediction-chips">
+                        {previewBet.predictions.map((star, index) => (
+                          <div key={index} className="prediction-chip">
+                            <Star size={12} fill="currentColor" />
+                            <span>{star} Star</span>
+                            <button 
+                              onClick={() => removePreviewPrediction(index)}
+                              className="remove-chip"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <div className="result-item">
-                        <span>Multiplier:</span>
-                        <span className="multiplier">{multiplier.toFixed(1)}x</span>
-                      </div>
-                      <div className="result-item">
-                        <span>Potential Payout:</span>
-                        <span>{payout} coins</span>
-                      </div>
-                      <div className="result-item">
-                        <span>Profit:</span>
-                        <span className="profit">+{profit} coins</span>
-                      </div>
-                      <div className="divider"></div>
-                      <div className="result-item">
-                        <span>Bonus Pool (if lost):</span>
-                        <span className="bonus-pool">{bonusPool} coins</span>
-                      </div>
-                      <div className="result-item">
-                        <span>Per-Rater Bonus:</span>
-                        <span className="rater-bonus">{raterBonus} coins each</span>
-                      </div>
-                    </>
-                  );
-                })()}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="preview-results">
+                  {(() => {
+                    const multiplier = calculateParlayMultiplier(previewBet.predictions, config.house_edge);
+                    const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge);
+                    const profit = payout - previewBet.stake;
+                    const bonusPool = calculateBonusPool(previewBet.stake, config.bonus_pool_percentage);
+                    const raterBonus = calculateRaterBonus(bonusPool, previewBet.predictions.length);
+                    
+                    return (
+                      <>
+                        <div className="result-item">
+                          <span>Predictions Count:</span>
+                          <span>{previewBet.predictions.length}</span>
+                        </div>
+                        <div className="result-item">
+                          <span>Total Multiplier:</span>
+                          <span className="multiplier">{multiplier.toFixed(1)}x</span>
+                        </div>
+                        <div className="result-item">
+                          <span>Potential Payout:</span>
+                          <span>{payout} coins</span>
+                        </div>
+                        <div className="result-item">
+                          <span>Profit:</span>
+                          <span className="profit">+{profit} coins</span>
+                        </div>
+                        <div className="divider"></div>
+                        <div className="result-item">
+                          <span>Bonus Pool (if lost):</span>
+                          <span className="bonus-pool">{bonusPool} coins</span>
+                        </div>
+                        <div className="result-item">
+                          <span>Per-Rater Bonus:</span>
+                          <span className="rater-bonus">{raterBonus} coins each</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           </div>
