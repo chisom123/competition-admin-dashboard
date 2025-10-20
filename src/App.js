@@ -194,17 +194,18 @@ function App() {
     const starAccuracy = config.star_accuracy_rates[starRating] || 0.5;
     const fairMultiplier = 1.0 / starAccuracy;
     const multiplier = fairMultiplier * (1.0 - houseEdge);
-    return Math.max(Math.floor(multiplier * 10) / 10, 1.1);
+    const rounded = Math.floor(multiplier * 10) / 10; // Floor here
+    return Math.max(rounded, 1.1);
   };
-
+  
   const calculateParlayMultiplier = (predictions, houseEdge) => {
     if (!predictions.length) return 1.0;
     let finalMultiplier = 1.0;
     predictions.forEach(starRating => {
       const starMultiplier = calculateSingleStarMultiplier(starRating, houseEdge);
-      finalMultiplier *= starMultiplier;
+      finalMultiplier *= starMultiplier; // Multiply already-floored values
     });
-    return Math.min(finalMultiplier, 100.0);
+    return Math.min(Math.floor(finalMultiplier * 10) / 10, 100.0); // Floor again at end
   };
 
   const calculatePayout = (stake, predictions, houseEdge) => {
