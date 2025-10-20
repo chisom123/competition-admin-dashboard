@@ -10,7 +10,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
     house_edge: 0.20,
-    bonus_pool_percentage: 0.50,
     star_accuracy_rates: {
       1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
     },
@@ -49,7 +48,6 @@ function App() {
         const data = doc.data();
         const migratedConfig = {
           house_edge: data.house_edge || 0.20,
-          bonus_pool_percentage: data.bonus_pool_percentage || 0.50,
           star_accuracy_rates: data.star_accuracy_rates || {
             1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
           },
@@ -174,7 +172,7 @@ function App() {
     setSaveStatus(null);
   };
 
-  const calculateNetHouseEV = (predictions, houseEdge, bonusPoolPercentage) => {
+  const calculateHouseEV = (predictions, houseEdge) => {
     if (predictions.length === 0) return 0;
     
     // Calculate combined win probability
@@ -182,18 +180,13 @@ function App() {
       return total * config.star_accuracy_rates[star];
     }, 1.0);
     
-    const lossRate = 1 - combinedWinProbability;
-    
-    // FIXED: Use the actual multiplier being shown to users
+    // Use the actual multiplier being shown to users
     const actualMultiplier = calculateParlayMultiplier(predictions, houseEdge);
     
-    // FIXED: Proper EV calculation
-    const grossHouseEV = 1 - (combinedWinProbability * actualMultiplier);
+    // House EV calculation
+    const houseEV = 1 - (combinedWinProbability * actualMultiplier);
     
-    // Net House EV (after bonus pool cost)
-    const netHouseEV = grossHouseEV - (bonusPoolPercentage * lossRate);
-    
-    return netHouseEV;
+    return houseEV;
   };
 
   // Calculation functions
@@ -219,32 +212,22 @@ function App() {
     return Math.round(stake * multiplier);
   };
 
-  const calculateBonusPool = (lostStake, bonusPoolPercentage) => {
-    return Math.floor(lostStake * bonusPoolPercentage);
+  // Add stars to preview - allows duplicates
+  const togglePreviewStar = (star) => {
+    setPreviewBet(prev => {
+      const newPredictions = [...prev.predictions];
+      newPredictions.push(star);
+      return { ...prev, predictions: newPredictions };
+    });
   };
 
-  const calculateRaterBonus = (bonusPool, totalPredictions) => {
-    if (totalPredictions <= 0) return 0;
-    return Math.floor(bonusPool / totalPredictions);
+  // Remove specific prediction
+  const removePreviewPrediction = (indexToRemove) => {
+    setPreviewBet(prev => ({
+      ...prev,
+      predictions: prev.predictions.filter((_, index) => index !== indexToRemove)
+    }));
   };
-
-// Add/remove stars from preview - UPDATED to allow duplicates
-const togglePreviewStar = (star) => {
-  setPreviewBet(prev => {
-    const newPredictions = [...prev.predictions];
-    // Simply add the star without checking for duplicates
-    newPredictions.push(star);
-    return { ...prev, predictions: newPredictions };
-  });
-};
-
-// Add a function to remove specific prediction
-const removePreviewPrediction = (indexToRemove) => {
-  setPreviewBet(prev => ({
-    ...prev,
-    predictions: prev.predictions.filter((_, index) => index !== indexToRemove)
-  }));
-};
 
   // Show loading spinner on initial load
   if (loading) {
@@ -365,26 +348,6 @@ const removePreviewPrediction = (indexToRemove) => {
                   </div>
                 </div>
                 <p className="description">Platform profit margin per bet</p>
-              </div>
-
-              {/* Bonus Pool Percentage */}
-              <div className="form-group">
-                <label>Rater Bonus Pool</label>
-                <div className="slider-container">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={config.bonus_pool_percentage}
-                    onChange={(e) => updateValue('bonus_pool_percentage', parseFloat(e.target.value))}
-                    className="slider"
-                  />
-                  <div className="slider-value">
-                    {(config.bonus_pool_percentage * 100).toFixed(1)}%
-                  </div>
-                </div>
-                <p className="description">Percentage of lost stakes paid to raters as bonuses</p>
               </div>
 
               {/* Per-Star Accuracy Rates */}
@@ -559,7 +522,7 @@ const removePreviewPrediction = (indexToRemove) => {
                     {[1, 2, 3, 4, 5].map(star => (
                       <button
                         key={star}
-                        className="star-btn" // Removed selected class since we can have duplicates
+                        className="star-btn"
                         onClick={() => togglePreviewStar(star)}
                       >
                         <Star size={16} fill="currentColor" />
@@ -598,18 +561,7 @@ const removePreviewPrediction = (indexToRemove) => {
                     const multiplier = calculateParlayMultiplier(previewBet.predictions, config.house_edge);
                     const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge);
                     const profit = payout - previewBet.stake;
-                    const bonusPool = calculateBonusPool(previewBet.stake, config.bonus_pool_percentage);
-                    const raterBonus = calculateRaterBonus(bonusPool, previewBet.predictions.length);
-                    
-                    // NEW: Calculate combinedWinProbability here
-                    const combinedWinProbability = previewBet.predictions.length > 0 
-                      ? previewBet.predictions.reduce((total, star) => {
-                          return total * config.star_accuracy_rates[star];
-                        }, 1.0)
-                      : 0;
-                    
-                    // NEW: Calculate Net House EV
-                    const netHouseEV = calculateNetHouseEV(previewBet.predictions, config.house_edge, config.bonus_pool_percentage);
+                    const houseEV = calculateHouseEV(previewBet.predictions, config.house_edge);
                     
                     return (
                       <>
@@ -630,33 +582,11 @@ const removePreviewPrediction = (indexToRemove) => {
                           <span className="profit">+{profit} coins</span>
                         </div>
                         <div className="divider"></div>
-                        {/* NEW: House Economics Section */}
                         <div className="result-item highlight">
-                          <span>Gross House EV:</span>
-                          <span className="house-ev">
-                            {combinedWinProbability > 0 ? (1 - (combinedWinProbability * multiplier)) * 100 : 0}%
+                          <span>House EV:</span>
+                          <span className={`house-ev ${houseEV >= 0 ? 'positive' : 'negative'}`}>
+                            {(houseEV * 100).toFixed(1)}%
                           </span>
-                        </div>
-                        <div className="result-item highlight">
-                          <span>Bonus Pool Cost:</span>
-                          <span className="bonus-cost">
-                            {combinedWinProbability > 0 ? (config.bonus_pool_percentage * (1 - combinedWinProbability) * 100).toFixed(1) : 0}%
-                          </span>
-                        </div>
-                        <div className="result-item highlight">
-                          <span>Net House EV:</span>
-                          <span className={`net-ev ${netHouseEV >= 0 ? 'positive' : 'negative'}`}>
-                            {(netHouseEV * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="divider"></div>
-                        <div className="result-item">
-                          <span>Bonus Pool (if lost):</span>
-                          <span className="bonus-pool">{bonusPool} coins</span>
-                        </div>
-                        <div className="result-item">
-                          <span>Per-Rater Bonus:</span>
-                          <span className="rater-bonus">{raterBonus} coins each</span>
                         </div>
                       </>
                     );
