@@ -10,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
     house_edge: 0.20,
+    rakeback_percentage: 0.50,
     star_accuracy_rates: {
       1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
     },
@@ -48,6 +49,7 @@ function App() {
         const data = doc.data();
         const migratedConfig = {
           house_edge: data.house_edge || 0.20,
+          rakeback_percentage: data.rakeback_percentage || 0.50,
           star_accuracy_rates: data.star_accuracy_rates || {
             1: 0.50, 2: 0.55, 3: 0.60, 4: 0.70, 5: 0.85
           },
@@ -172,7 +174,14 @@ function App() {
     setSaveStatus(null);
   };
 
-  const calculateHouseEV = (predictions, houseEdge) => {
+  // Calculate rakeback amount
+  const calculateRakeback = (stake, houseEdge, rakebackPercentage) => {
+    const houseEdgeTaken = stake * houseEdge;
+    const rakebackAmount = houseEdgeTaken * rakebackPercentage;
+    return Math.floor(rakebackAmount);
+  };
+
+  const calculateHouseEV = (predictions, houseEdge, rakebackPercentage, stake = 100) => {
     if (predictions.length === 0) return 0;
     
     // Calculate combined win probability
@@ -183,10 +192,19 @@ function App() {
     // Use the actual multiplier being shown to users
     const actualMultiplier = calculateParlayMultiplier(predictions, houseEdge);
     
-    // House EV calculation
-    const houseEV = 1 - (combinedWinProbability * actualMultiplier);
+    // Gross House EV (before rakeback)
+    const grossHouseEV = 1 - (combinedWinProbability * actualMultiplier);
     
-    return houseEV;
+    // Calculate ACTUAL rakeback paid (based on your current logic)
+    const actualRakebackPaid = calculateRakeback(stake, houseEdge, rakebackPercentage);
+    
+    // Convert rakeback to percentage of stake
+    const rakebackPercentageOfStake = actualRakebackPaid / stake;
+    
+    // Net House EV = Gross EV - Rakeback cost
+    const netHouseEV = grossHouseEV - rakebackPercentageOfStake;
+    
+    return netHouseEV;
   };
 
   // Calculation functions
@@ -349,6 +367,28 @@ function App() {
                   </div>
                 </div>
                 <p className="description">Platform profit margin per bet</p>
+              </div>
+
+              {/* Rakeback Percentage */}
+              <div className="form-group">
+                <label>
+                  Rakeback
+                </label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.01"
+                    value={config.rakeback_percentage}
+                    onChange={(e) => updateValue('rakeback_percentage', parseFloat(e.target.value))}
+                    className="slider"
+                  />
+                  <div className="slider-value">
+                    {(config.rakeback_percentage * 100).toFixed(0)}%
+                  </div>
+                </div>
+                <p className="description">Percentage of house edge returned to users as rakeback</p>
               </div>
 
               {/* Per-Star Accuracy Rates */}
@@ -562,7 +602,9 @@ function App() {
                     const multiplier = calculateParlayMultiplier(previewBet.predictions, config.house_edge);
                     const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge);
                     const profit = payout - previewBet.stake;
-                    const houseEV = calculateHouseEV(previewBet.predictions, config.house_edge);
+                    const houseEV = calculateHouseEV(previewBet.predictions, config.house_edge, config.rakeback_percentage, previewBet.stake);
+                    const rakeback = calculateRakeback(previewBet.stake, config.house_edge, config.rakeback_percentage);
+                    const netCost = previewBet.stake - rakeback;
                     
                     return (
                       <>
@@ -582,7 +624,21 @@ function App() {
                           <span>Profit:</span>
                           <span className="profit">+{profit} coins</span>
                         </div>
-                        <div className="divider"></div>
+                        {rakeback > 0 && (
+                          <>
+                            <div className="divider"></div>
+                            <div className="result-item">
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                Rakeback:
+                              </span>
+                              <span>+{rakeback} coins</span>
+                            </div>
+                            <div className="result-item">
+                              <span>Player's Net Cost:</span>
+                              <span>{netCost} coins</span>
+                            </div>
+                          </>
+                        )}
                         <div className="result-item highlight">
                           <span>House EV:</span>
                           <span className={`house-ev ${houseEV >= 0 ? 'positive' : 'negative'}`}>
