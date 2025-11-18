@@ -228,7 +228,7 @@ function App() {
 
   const calculatePayout = (stake, predictions, houseEdge) => {
     const multiplier = calculateParlayMultiplier(predictions, houseEdge);
-    return Math.round(stake * multiplier);
+    return Math.floor(stake * multiplier);
   };
 
   // Add stars to preview - allows duplicates
