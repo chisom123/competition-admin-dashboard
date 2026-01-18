@@ -727,6 +727,227 @@ body {
   margin: 8px 0;
 }
 
+/* Withdrawals Styles */
+.withdrawals-container {
+  padding: 24px;
+}
+
+.withdrawals-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.subtitle {
+  color: #666;
+  margin: 4px 0 0 0;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.withdrawals-list {
+  display: grid;
+  gap: 16px;
+}
+
+.withdrawal-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.withdrawal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.withdrawal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.withdrawal-amount {
+  font-size: 24px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.withdrawal-user {
+  font-size: 14px;
+  color: #666;
+  font-family: monospace;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.withdrawal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.detail-row .label {
+  font-size: 14px;
+  color: #666;
+}
+
+.detail-row .value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+  text-align: right;
+}
+
+.detail-row.rejection-reason {
+  background: #fee2e2;
+  padding: 12px;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.withdrawal-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state svg {
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: #9ca3af;
+}
+
+.loading-state svg {
+  margin-bottom: 16px;
+}
+
+.nav-link {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #9ca3af;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  color: #fff;
+}
+
+.nav-link.active {
+  color: #fff;
+  border-bottom-color: #3b82f6;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-content {
