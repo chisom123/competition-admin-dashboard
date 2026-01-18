@@ -444,7 +444,7 @@ const InfoPage = () => {
                 }}>
                   {/* Prize Box */}
                   <div style={{
-                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    backgroundColor: 'rgba(0, 255, 0, 0.15)',
                     padding: '14px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -459,7 +459,7 @@ const InfoPage = () => {
                       </span>
                     </div>
                     <div style={{ 
-                      color: '#22C55E', 
+                      color: '#00FF00', 
                       fontSize: '22px', 
                       fontWeight: 'bold',
                       letterSpacing: '-0.5px'
