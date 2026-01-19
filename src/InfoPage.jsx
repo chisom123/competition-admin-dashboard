@@ -212,10 +212,13 @@ const InfoPage = () => {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
     
-    if (days > 0) return `${days}d ${hours}h Left`;
-    if (hours > 0) return `${hours}h ${minutes}m Left`;
-    return `${minutes}m Left`;
+    if (days > 0) return `${days}d Left`;
+    if (hours > 0) return `${hours}h Left`;
+    if (minutes > 0) return `${minutes}m Left`;
+    
+    return `${seconds}s Left`;
   };
 
   // Track unique continue button click from InfoPage
