@@ -3,8 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import AdminDashboard from './AdminDashboard';
-import RatingPage from './RatingPage';
-import InfoPage from './InfoPage';
 import './App.css';
 
 function App() {
@@ -24,22 +22,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Rating page route with recruiterId and linkId params */}
-        <Route path="/rate/:recruiterId/:linkId" element={<RatingPage />} />
-        
-        {/* Info page route (shown when app isn't installed) */}
-        <Route path="/info/:recruiterId/:linkId" element={<InfoPage />} />
-        
-        {/* Admin dashboard */}
-        <Route path="/admin/*" element={<AdminDashboard user={user} />} />
-        
-        {/* Default/home route */}
-        <Route path="/" element={
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <h1>SocialStar Rating System</h1>
-            <p>Please use a valid rating link</p>
-          </div>
-        } />
+        {/* Admin dashboard as root route */}
+        <Route path="/*" element={<AdminDashboard user={user} />} />
       </Routes>
     </Router>
   );

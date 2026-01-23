@@ -3,13 +3,12 @@ import Withdrawals from './Withdrawals';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-import RatingLinksAnalytics from './RatingLinksAnalytics';
 import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle, BarChart3, Star, Trophy } from 'lucide-react';
 import './App.css';
 
 function AdminDashboard() {
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'withdrawals', or 'rating-links'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'withdrawals'
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({
     house_edge: 0.20,
@@ -404,13 +403,6 @@ function AdminDashboard() {
                   className={`nav-link ${currentView === 'withdrawals' ? 'active' : ''}`}
                 >
                   Withdrawals
-                </button>
-
-                <button 
-                  onClick={() => setCurrentView('rating-links')}
-                  className={`nav-link ${currentView === 'rating-links' ? 'active' : ''}`}
-                >
-                  Rating Links
                 </button>
 
                 <span className="user-email">{user.email}</span>
@@ -829,9 +821,7 @@ function AdminDashboard() {
         </div>
       ) : currentView === 'withdrawals' ? (
         <Withdrawals />
-      ) : (
-        <RatingLinksAnalytics />
-      )}
+      ) : null}
       
     </div>
   );
