@@ -572,7 +572,7 @@ function AdminDashboard() {
                       type="range"
                       min="0"
                       max="0.95"
-                      step="0.05"
+                      step="0.01"
                       value={globalLeaderboardConfig.decay_rate}
                       onChange={(e) => updateGlobalConfigValue('decay_rate', parseFloat(e.target.value))}
                       className="slider"
