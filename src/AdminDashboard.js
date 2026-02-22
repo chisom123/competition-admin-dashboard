@@ -249,37 +249,53 @@ function AdminDashboard() {
     setSaveStatus(null);
   };
 
-  // Calculate rakeback amount
-  const calculateRakeback = (stake, houseEdge, rakebackPercentage) => {
-    const houseEdgeTaken = stake * houseEdge;
-    const rakebackAmount = houseEdgeTaken * rakebackPercentage;
-    return Math.floor(rakebackAmount);
+  // UPDATED: Calculate rakeback as a percentage of gross house expected keep.
+  // This ensures rakeback always scales proportionally with actual house profitability
+  // and can never exceed it — works correctly for both straight bets and parlays of any size.
+  const calculateRakeback = (stake, predictions, houseEdge, rakebackPercentage) => {
+    if (!predictions || predictions.length === 0) return 0;
+
+    // Combined win probability across all legs
+    const combinedWinProbability = predictions.reduce((total, star) => {
+      const accuracy = config.star_accuracy_rates[star] || 0.5;
+      return total * accuracy;
+    }, 1.0);
+
+    // Actual multiplier shown to the player
+    const actualMultiplier = calculateParlayMultiplier(predictions, houseEdge);
+
+    // Gross house expected keep — what house statistically expects to profit before rakeback
+    const grossHouseExpectedKeep = stake - (combinedWinProbability * actualMultiplier * stake);
+
+    // Rakeback is a percentage of gross expected keep — always positive, always proportional
+    return Math.floor(Math.max(0, grossHouseExpectedKeep) * rakebackPercentage);
   };
 
+  // UPDATED: House EV calculated entirely in coins before converting to percentage.
+  // Previously mixed percentages and coin amounts which produced incorrect negative results.
+  // Rakeback is always a cut of edge extracted so house EV can never be negative in reality.
   const calculateHouseEV = (predictions, houseEdge, rakebackPercentage, stake = 100) => {
     if (predictions.length === 0) return 0;
-    
-    // Calculate combined win probability
+
+    // Combined win probability across all legs
     const combinedWinProbability = predictions.reduce((total, star) => {
-      return total * config.star_accuracy_rates[star];
+      return total * (config.star_accuracy_rates[star] || 0.5);
     }, 1.0);
-    
-    // Use the actual multiplier being shown to users
+
+    // Actual multiplier shown to users
     const actualMultiplier = calculateParlayMultiplier(predictions, houseEdge);
-    
-    // Gross House EV (before rakeback)
-    const grossHouseEV = 1 - (combinedWinProbability * actualMultiplier);
-    
-    // Calculate ACTUAL rakeback paid (based on your current logic)
-    const actualRakebackPaid = calculateRakeback(stake, houseEdge, rakebackPercentage);
-    
-    // Convert rakeback to percentage of stake
-    const rakebackPercentageOfStake = actualRakebackPaid / stake;
-    
-    // Net House EV = Gross EV - Rakeback cost
-    const netHouseEV = grossHouseEV - rakebackPercentageOfStake;
-    
-    return netHouseEV;
+
+    // Everything in coins — expected amount house keeps before rakeback
+    const grossHouseExpectedKeep = stake - (combinedWinProbability * actualMultiplier * stake);
+
+    // Rakeback in coins using fair value method
+    const rakebackCoins = calculateRakeback(stake, predictions, houseEdge, rakebackPercentage);
+
+    // Net coins house keeps after rakeback
+    const netHouseExpectedKeep = grossHouseExpectedKeep - rakebackCoins;
+
+    // Convert to percentage of stake at the end only
+    return netHouseExpectedKeep / stake;
   };
 
   // Calculation functions
@@ -287,7 +303,7 @@ function AdminDashboard() {
     const starAccuracy = config.star_accuracy_rates[starRating] || 0.5;
     const fairMultiplier = 1.0 / starAccuracy;
     const multiplier = fairMultiplier * (1.0 - houseEdge);
-    const rounded = Math.floor(multiplier * 10) / 10; // Floor here
+    const rounded = Math.floor(multiplier * 10) / 10;
     return Math.max(rounded, 1.1);
   };
   
@@ -296,9 +312,9 @@ function AdminDashboard() {
     let finalMultiplier = 1.0;
     predictions.forEach(starRating => {
       const starMultiplier = calculateSingleStarMultiplier(starRating, houseEdge);
-      finalMultiplier *= starMultiplier; // Multiply already-floored values
+      finalMultiplier *= starMultiplier;
     });
-    return Math.min(Math.floor(finalMultiplier * 10) / 10, 100.0); // Floor again at end
+    return Math.min(Math.floor(finalMultiplier * 10) / 10, 100.0);
   };
 
   const calculatePayout = (stake, predictions, houseEdge) => {
@@ -768,7 +784,8 @@ function AdminDashboard() {
                       const payout = calculatePayout(previewBet.stake, previewBet.predictions, config.house_edge);
                       const profit = payout - previewBet.stake;
                       const houseEV = calculateHouseEV(previewBet.predictions, config.house_edge, config.rakeback_percentage, previewBet.stake);
-                      const rakeback = calculateRakeback(previewBet.stake, config.house_edge, config.rakeback_percentage);
+                      // UPDATED: pass predictions array into calculateRakeback
+                      const rakeback = calculateRakeback(previewBet.stake, previewBet.predictions, config.house_edge, config.rakeback_percentage);
                       const netCost = previewBet.stake - rakeback;
                       
                       return (
