@@ -302,9 +302,7 @@ function AdminDashboard() {
   const calculateSingleStarMultiplier = (starRating, houseEdge) => {
     const starAccuracy = config.star_accuracy_rates[starRating] || 0.5;
     const fairMultiplier = 1.0 / starAccuracy;
-    const multiplier = fairMultiplier * (1.0 - houseEdge);
-    const rounded = Math.floor(multiplier * 10) / 10;
-    return Math.max(rounded, 1.1);
+    return fairMultiplier * (1.0 - houseEdge);
   };
   
   const calculateParlayMultiplier = (predictions, houseEdge) => {
@@ -314,7 +312,7 @@ function AdminDashboard() {
       const starMultiplier = calculateSingleStarMultiplier(starRating, houseEdge);
       finalMultiplier *= starMultiplier;
     });
-    return Math.min(Math.floor(finalMultiplier * 10) / 10, 100.0);
+    return Math.min(finalMultiplier, 100.0);
   };
 
   const calculatePayout = (stake, predictions, houseEdge) => {
@@ -496,7 +494,7 @@ function AdminDashboard() {
                             <span>{star} Star{star !== 1 ? 's' : ''}</span>
                           </div>
                           <div className="multiplier-preview">
-                            {calculateSingleStarMultiplier(star, config.house_edge).toFixed(1)}x
+                            {calculateSingleStarMultiplier(star, config.house_edge).toFixed(4)}x
                           </div>
                         </div>
                         <div className="slider-container compact">
@@ -750,7 +748,7 @@ function AdminDashboard() {
                           <Star size={16} fill="currentColor" />
                           {star}
                           <div className="star-multiplier">
-                            {calculateSingleStarMultiplier(star, config.house_edge).toFixed(1)}x
+                            {calculateSingleStarMultiplier(star, config.house_edge).toFixed(4)}x
                           </div>
                         </button>
                       ))}
@@ -796,7 +794,7 @@ function AdminDashboard() {
                           </div>
                           <div className="result-item">
                             <span>Total Multiplier:</span>
-                            <span className="multiplier">{multiplier.toFixed(1)}x</span>
+                            <span className="multiplier">{multiplier.toFixed(4)}x</span>
                           </div>
                           <div className="result-item">
                             <span>Potential Payout:</span>
@@ -824,7 +822,7 @@ function AdminDashboard() {
                           <div className="result-item highlight">
                             <span>House EV:</span>
                             <span className={`house-ev ${houseEV >= 0 ? 'positive' : 'negative'}`}>
-                              {(houseEV * 100).toFixed(1)}%
+                              {(houseEV * 100).toFixed(4)}%
                             </span>
                           </div>
                         </>
