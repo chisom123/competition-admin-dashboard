@@ -3,7 +3,7 @@ import Withdrawals from './Withdrawals';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
-import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, CheckCircle, BarChart3, Star, Trophy } from 'lucide-react';
+import { Save, RefreshCw, Settings, Eye, LogOut, AlertTriangle, BarChart3, Star } from 'lucide-react';
 import './App.css';
 
 function AdminDashboard() {
@@ -20,19 +20,7 @@ function AdminDashboard() {
     updated_by: null,
     version: '1.0'
   });
-  const [globalLeaderboardConfig, setGlobalLeaderboardConfig] = useState({
-    enabled: true,
-    pot_max_participants: 1000,
-    first_place_prize: 100,
-    decay_rate: 0.00,
-    min_payout: 0.01,
-    min_withdrawal_amount: 5.00,
-    last_updated: null,
-    updated_by: null,
-    version: '1.0'
-  });
   const [isDirty, setIsDirty] = useState(false);
-  const [isGlobalConfigDirty, setIsGlobalConfigDirty] = useState(false);
   const [isSaving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [previewBet, setPreviewBet] = useState({ stake: 100, predictions: [] });
@@ -50,7 +38,6 @@ function AdminDashboard() {
       setLoading(false);
       if (user) {
         loadConfig();
-        loadGlobalLeaderboardConfig();
       }
     });
     return () => unsubscribe();
@@ -78,34 +65,6 @@ function AdminDashboard() {
     }, (error) => {
       console.error('Error listening to config:', error);
       setSaveStatus('error');
-    });
-    return unsubscribe;
-  };
-
-  // Load global leaderboard config from Firestore
-  const loadGlobalLeaderboardConfig = () => {
-    const configRef = doc(db, 'app_config', 'global_leaderboard');
-    const unsubscribe = onSnapshot(configRef, (doc) => {
-      if (doc.exists()) {
-        setGlobalLeaderboardConfig(doc.data());
-        setIsGlobalConfigDirty(false);
-      } else {
-        // Create default config if doesn't exist
-        const defaultConfig = {
-          enabled: true,
-          pot_max_participants: 1000,
-          first_place_prize: 100,
-          decay_rate: 0.00,
-          min_payout: 0.01,
-          min_withdrawal_amount: 5.00,
-          last_updated: new Date().toISOString(),
-          updated_by: 'system',
-          version: '1.0'
-        };
-        setDoc(configRef, defaultConfig);
-      }
-    }, (error) => {
-      console.error('Error listening to global leaderboard config:', error);
     });
     return unsubscribe;
   };
@@ -200,42 +159,10 @@ function AdminDashboard() {
     }
   };
 
-  // Save global leaderboard config
-  const saveGlobalLeaderboardConfig = async () => {
-    setSaving(true);
-    setSaveStatus(null);
-    try {
-      const updatedConfig = {
-        ...globalLeaderboardConfig,
-        last_updated: new Date().toISOString(),
-        updated_by: user.email,
-        version: (parseFloat(globalLeaderboardConfig.version) + 0.1).toFixed(1)
-      };
-      const configRef = doc(db, 'app_config', 'global_leaderboard');
-      await setDoc(configRef, updatedConfig);
-      setGlobalLeaderboardConfig(updatedConfig);
-      setIsGlobalConfigDirty(false);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (error) {
-      console.error('Failed to save global leaderboard config:', error);
-      setSaveStatus('error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Update config values
   const updateValue = (field, value) => {
     setConfig(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
-    setSaveStatus(null);
-  };
-
-  // Update global config values
-  const updateGlobalConfigValue = (field, value) => {
-    setGlobalLeaderboardConfig(prev => ({ ...prev, [field]: value }));
-    setIsGlobalConfigDirty(true);
     setSaveStatus(null);
   };
 
@@ -537,94 +464,6 @@ function AdminDashboard() {
                   <div>
                     <span className="metadata-label">Updated By:</span>
                     <span className="metadata-value">{config.updated_by || 'Unknown'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Global Leaderboard Settings Panel */}
-            <div className="card">
-              <h2 className="card-title">
-                <Trophy size={20} />
-                Global Leaderboard Settings
-              </h2>
-              <div className="form-section">
-
-                {/* Pot Size */}
-                <div className="form-group">
-                  <label>Pot Size (Max Participants)</label>
-                  <input
-                    type="number"
-                    value={globalLeaderboardConfig.pot_max_participants}
-                    onChange={(e) => updateGlobalConfigValue('pot_max_participants', parseInt(e.target.value) || 1000)}
-                    className="form-input"
-                    min="10"
-                    step="100"
-                  />
-                  <p className="description">Maximum number of users per pot</p>
-                </div>
-
-                {/* First Place Prize */}
-                <div className="form-group">
-                  <label>First Place Prize ($)</label>
-                  <input
-                    type="number"
-                    value={globalLeaderboardConfig.first_place_prize}
-                    onChange={(e) => updateGlobalConfigValue('first_place_prize', parseFloat(e.target.value) || 100)}
-                    className="form-input"
-                    min="1"
-                    step="10"
-                  />
-                  <p className="description">Prize amount for 1st place winner</p>
-                </div>
-
-                {/* Decay Rate */}
-                <div className="form-group">
-                  <label>Prize Decay Rate</label>
-                  <div className="slider-container">
-                    <input
-                      type="range"
-                      min="0"
-                      max="0.95"
-                      step="0.01"
-                      value={globalLeaderboardConfig.decay_rate}
-                      onChange={(e) => updateGlobalConfigValue('decay_rate', parseFloat(e.target.value))}
-                      className="slider"
-                    />
-                    <div className="slider-value">
-                      {(globalLeaderboardConfig.decay_rate * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                  <p className="description">
-                    0% = Only 1st place wins. Higher % = More winners with decreasing prizes.
-                  </p>
-                </div>
-
-                <button
-                  onClick={saveGlobalLeaderboardConfig}
-                  disabled={!isGlobalConfigDirty || isSaving}
-                  className={`btn btn-primary ${(!isGlobalConfigDirty || isSaving) ? 'disabled' : ''}`}
-                >
-                  {isSaving ? <RefreshCw className="spinner" size={16} /> : <Save size={16} />}
-                  {isSaving ? 'Saving...' : 'Save Global Settings'}
-                </button>
-              </div>
-
-              <div className="metadata">
-                <div className="metadata-grid">
-                  <div>
-                    <span className="metadata-label">Last Updated:</span>
-                    <span className="metadata-value">
-                      {globalLeaderboardConfig.last_updated 
-                        ? new Date(globalLeaderboardConfig.last_updated).toLocaleString() 
-                        : 'Never'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="metadata-label">Updated By:</span>
-                    <span className="metadata-value">
-                      {globalLeaderboardConfig.updated_by || 'Unknown'}
-                    </span>
                   </div>
                 </div>
               </div>

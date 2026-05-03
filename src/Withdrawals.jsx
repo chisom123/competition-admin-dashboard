@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { db } from './firebase';
-import { collection, query, orderBy, getDocs, doc, updateDoc, getDoc, Timestamp, increment } from 'firebase/firestore';
+import { db, functions } from './firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { DollarSign, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 
 function Withdrawals() {
   const [withdrawals, setWithdrawals] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('pending'); // 'all', 'pending', 'completed', 'rejected'
+  const [filter, setFilter] = useState('pending');
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
@@ -19,17 +20,16 @@ function Withdrawals() {
       const snapshot = await getDocs(
         query(collection(db, 'withdrawals'), orderBy('requested_at', 'desc'))
       );
-      
+
       let withdrawalsList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      
-      // Filter client-side
+
       if (filter !== 'all') {
         withdrawalsList = withdrawalsList.filter(w => w.status === filter);
       }
-      
+
       setWithdrawals(withdrawalsList);
     } catch (error) {
       console.error('Error loading withdrawals:', error);
@@ -38,61 +38,42 @@ function Withdrawals() {
     }
   };
 
-  const handleApprove = async (withdrawalId) => {
-    if (!window.confirm('Mark this withdrawal as completed?')) return;
-    
+  // ── Approve ───────────────────────────────────────────────
+  // Calls the approveWithdrawal Cloud Function which marks
+  // the withdrawal as completed server-side.
+  // You still need to manually send the money via PayPal.
+
+  const handleApprove = async (withdrawalId, withdrawal) => {
+    if (!window.confirm(
+      `Approve withdrawal of $${withdrawal.amount?.toFixed(2)} to ${withdrawal.paypal_email}?\n\nRemember to send the money manually via PayPal.`
+    )) return;
+
     setProcessingId(withdrawalId);
     try {
-      const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
-      await updateDoc(withdrawalRef, {
-        status: 'completed',
-        processed_at: Timestamp.now()
-      });
-      
+      const approveWithdrawal = httpsCallable(functions, 'approveWithdrawal');
+      await approveWithdrawal({ withdrawalId });
       await loadWithdrawals();
     } catch (error) {
       console.error('Error approving withdrawal:', error);
-      alert('Failed to approve withdrawal');
+      alert('Failed to approve withdrawal: ' + error.message);
     } finally {
       setProcessingId(null);
     }
   };
 
+  // ── Reject ────────────────────────────────────────────────
+  // Calls the rejectWithdrawal Cloud Function which marks
+  // the withdrawal as rejected and automatically returns
+  // the balance to the user's wallet.
+
   const handleReject = async (withdrawalId) => {
-    const reason = window.prompt('Rejection reason:');
-    if (!reason) return;
-    
-    const shouldRefund = window.confirm('Refund money to user\'s wallet?\n\nClick OK to refund, Cancel to keep deducted.');
-    
+    const reason = window.prompt('Rejection reason (shown to user):');
+    if (!reason || reason.trim().length === 0) return;
+
     setProcessingId(withdrawalId);
     try {
-      // Get withdrawal data
-      const withdrawalDoc = await getDoc(doc(db, 'withdrawals', withdrawalId));
-      const withdrawalData = withdrawalDoc.data();
-      
-      if (!withdrawalData) {
-        throw new Error('Withdrawal not found');
-      }
-      
-      const { user_id, amount } = withdrawalData;
-      
-      // Update withdrawal status
-      const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
-      await updateDoc(withdrawalRef, {
-        status: 'rejected',
-        processed_at: Timestamp.now(),
-        rejection_reason: reason,
-        refunded: shouldRefund
-      });
-      
-      // Refund if admin chose to
-      if (shouldRefund) {
-        const userRef = doc(db, 'users', user_id);
-        await updateDoc(userRef, {
-          wallet_balance: increment(amount)
-        });
-      }
-      
+      const rejectWithdrawal = httpsCallable(functions, 'rejectWithdrawal');
+      await rejectWithdrawal({ withdrawalId, reason: reason.trim() });
       await loadWithdrawals();
     } catch (error) {
       console.error('Error rejecting withdrawal:', error);
@@ -106,6 +87,8 @@ function Withdrawals() {
     switch (status) {
       case 'pending':
         return <span className="status-badge pending"><Clock size={14} /> Pending</span>;
+      case 'processing':
+        return <span className="status-badge pending"><RefreshCw size={14} className="spinner" /> Processing</span>;
       case 'completed':
         return <span className="status-badge completed"><CheckCircle size={14} /> Completed</span>;
       case 'rejected':
@@ -121,6 +104,9 @@ function Withdrawals() {
     return date.toLocaleString();
   };
 
+  // Count pending for header
+  const pendingCount = withdrawals.filter(w => w.status === 'pending').length;
+
   return (
     <div className="withdrawals-container">
       <div className="withdrawals-header">
@@ -128,38 +114,30 @@ function Withdrawals() {
           <DollarSign size={32} className="header-icon" />
           <div>
             <h1>Withdrawal Requests</h1>
-            <p className="subtitle">{withdrawals.length} withdrawal{withdrawals.length !== 1 ? 's' : ''}</p>
+            <p className="subtitle">
+              {withdrawals.length} withdrawal{withdrawals.length !== 1 ? 's' : ''}
+              {filter === 'pending' && pendingCount > 0 && (
+                <span style={{ color: '#f97316', marginLeft: 8 }}>
+                  — send PayPal payments manually before approving
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="header-actions">
           <div className="filter-buttons">
-            <button 
-              className={`btn ${filter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('pending')}
-            >
-              Pending
-            </button>
-            <button 
-              className={`btn ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('completed')}
-            >
-              Completed
-            </button>
-            <button 
-              className={`btn ${filter === 'rejected' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('rejected')}
-            >
-              Rejected
-            </button>
-            <button 
-              className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('all')}
-            >
-              All
-            </button>
+            {['pending', 'completed', 'rejected', 'all'].map(f => (
+              <button
+                key={f}
+                className={`btn ${filter === f ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter(f)}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
           </div>
-          <button 
-            onClick={loadWithdrawals} 
+          <button
+            onClick={loadWithdrawals}
             disabled={loading}
             className="btn btn-secondary"
           >
@@ -186,17 +164,17 @@ function Withdrawals() {
             <div key={withdrawal.id} className="withdrawal-card">
               <div className="withdrawal-header">
                 <div className="withdrawal-info">
-                  <div className="withdrawal-amount">${withdrawal.amount?.toFixed(2) || '0.00'}</div>
-                  <div className="withdrawal-user">User ID: {withdrawal.user_id}</div>
+                  <div className="withdrawal-amount">
+                    ${withdrawal.amount?.toFixed(2) || '0.00'}
+                  </div>
+                  <div className="withdrawal-user">
+                    User ID: {withdrawal.user_id}
+                  </div>
                 </div>
                 {getStatusBadge(withdrawal.status)}
               </div>
 
               <div className="withdrawal-details">
-                <div className="detail-row">
-                  <span className="label">Payment Method:</span>
-                  <span className="value">{withdrawal.payment_method || 'N/A'}</span>
-                </div>
                 <div className="detail-row">
                   <span className="label">PayPal Email:</span>
                   <span className="value">{withdrawal.paypal_email || 'N/A'}</span>
@@ -211,10 +189,16 @@ function Withdrawals() {
                     <span className="value">{formatDate(withdrawal.processed_at)}</span>
                   </div>
                 )}
+                {withdrawal.payout_reference && (
+                  <div className="detail-row">
+                    <span className="label">Reference:</span>
+                    <span className="value">{withdrawal.payout_reference}</span>
+                  </div>
+                )}
                 {withdrawal.status === 'rejected' && (
                   <div className="detail-row">
                     <span className="label">Refunded:</span>
-                    <span className="value">{withdrawal.refunded ? 'Yes' : 'No'}</span>
+                    <span className="value">{withdrawal.refunded ? 'Yes — balance returned' : 'No'}</span>
                   </div>
                 )}
                 {withdrawal.rejection_reason && (
@@ -228,16 +212,15 @@ function Withdrawals() {
               {withdrawal.status === 'pending' && (
                 <div className="withdrawal-actions">
                   <button
-                    onClick={() => handleApprove(withdrawal.id)}
+                    onClick={() => handleApprove(withdrawal.id, withdrawal)}
                     disabled={processingId === withdrawal.id}
                     className="btn btn-success"
                   >
-                    {processingId === withdrawal.id ? (
-                      <RefreshCw className="spinner" size={14} />
-                    ) : (
-                      <CheckCircle size={14} />
-                    )}
-                    Approve
+                    {processingId === withdrawal.id
+                      ? <RefreshCw className="spinner" size={14} />
+                      : <CheckCircle size={14} />
+                    }
+                    Mark as Sent
                   </button>
                   <button
                     onClick={() => handleReject(withdrawal.id)}
