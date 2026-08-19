@@ -1,70 +1,70 @@
-# Getting Started with Create React App
+# Competition Admin Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React admin dashboard for the photo competition platform. Manage prediction parlay settings, monitor user activity, and process withdrawal requests.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 📱 Overview
 
-### `npm start`
+This dashboard gives administrators full control over the photo competition business. It's where I adjust the prediction parlay accuracy rates and house edge (which determine coin payouts), manage player cash withdrawals, and monitor overall platform activity.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠️ Tech Stack
 
-### `npm test`
+- **React** – Frontend
+- **Firebase** – Auth, Firestore, Cloud Functions
+- **Recharts** – Analytics visualisation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## ✨ Key Features
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Parlay settings management** – Adjust star accuracy rates and house edge to control coin payouts
+- **Withdrawal processing** – View, approve, and manage player cash withdrawal requests
+- **User management** – Monitor users, view activity, and manage accounts
+- **Analytics dashboard** – Track platform performance, user growth, and revenue
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🏗️ Architecture
 
-### `npm run eject`
+Built on a **Firebase-first** backend:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- **Firestore** – Stores user data, withdrawal requests, and platform settings
+- **Cloud Functions** – Serverless logic for withdrawal processing and payout calculations
+- **Firebase Auth** – Admin authentication and authorisation
+- **Recharts** – Data visualisation for analytics
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 📸 Screenshots
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+| Dashboard |
+|-----------|
+| <img width="300" alt="Dashboard" src="https://github.com/user-attachments/assets/19e31d44-620c-4f8f-8306-2d9553a88558" /> |
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🔗 Related Repos
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- [Photo Competition iOS App](https://github.com/chisom123/photo-competition-ios) – The main app where users compete and earn points
+- [Affiliate Marketing Platform](https://github.com/chisom123/affiliate-marketing-platform) – Admin dashboard for the affiliate program
+- [Affiliate Partner iOS App](https://github.com/chisom123/affiliate-partner-ios) – iOS app for affiliates to manage their campaigns
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## ⚙️ Setup
 
-### Analyzing the Bundle Size
+This project uses Firebase. To run it locally:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+1. Clone the repo  
+2. Create a Firebase project and enable Auth, Firestore, and Cloud Functions  
+3. Add your Firebase config to the environment variables  
+4. Run `npm install` and `npm start`
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 📈 Evolution
 
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Built as the administrative backbone of the photo competition platform. This dashboard gave me full control over the business logic—from adjusting prediction accuracy rates to processing real money withdrawals—without needing to touch the app code.
